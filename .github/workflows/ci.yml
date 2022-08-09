@@ -11,6 +11,23 @@ jobs:
   build:
     name: test
     runs-on: ubuntu-latest
+
+    # https://docs.github.com/en/enterprise-server@3.2/actions/using-containerized-services/creating-postgresql-service-containers
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: root 
+          POSTGRES_PASSWORD: secret 
+          POSTGRES_DB: simple_bank
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - uses: actions/checkout@v3
 
@@ -19,6 +36,15 @@ jobs:
       with:
         go-version: 1.18
       id: go # step name
+    
+    - name: Install golang-migrate
+      run: |
+        curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.darwin-amd64.tar.gz | tar xvz
+        sudo mv migrate.linux_amd64 /usr/bin/migrate
+        which migrate   
+
+    - name: Run migrations
+      run: make migrateup
 
     - name: Test # 해당 프로젝트에선 알아서 빌드되므로 build step이 필요없음
       run: make test 
