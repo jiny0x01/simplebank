@@ -41,3 +41,15 @@ postgresql을 잘 지원해주기 때문에
 
 
 # Transaction Isolation Level
+동시 트랜잭션은 서로 영향을 미치지 않아야하는 데이터 베이스 성질을 Isolation이라 한다.
+
+postgres에선 다음 명령어로 isolation level을 확인할 수 있다.
+> show transaction isolation level
+
+isolation level은 4단계가 있다.
+
+https://www.postgresql.org/docs/current/transaction-iso.html
+
+## 명심할 것
+- isolation 레벨이 높을 수록 error, timeout, deadlock이 발생할 수 있다.
+- DBMS마다 isolation 구현이 다르니 공식 문서를 꼭 참조하자.

@@ -1,0 +1,24 @@
+name: ci-test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.18
+      id: go # step name
+
+    - name: Test # 해당 프로젝트에선 알아서 빌드되므로 build step이 필요없음
+      run: make test 
