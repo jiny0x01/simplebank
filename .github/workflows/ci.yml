@@ -45,7 +45,10 @@ jobs:
         which migrate   
 
     - name: Run migrations
-      run: make migrateup
+      run: |
+        echo "check migrate"
+        which migrate
+        make migrateup
 
     - name: Test # 해당 프로젝트에선 알아서 빌드되므로 build step이 필요없음
       run: make test 
