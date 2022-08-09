@@ -1,5 +1,5 @@
 -- name: CreateAccount :one
-INSERT INTO accounts (
+INSERT INTO account (
     owner,
     balance,
     currency
@@ -7,23 +7,34 @@ INSERT INTO accounts (
     $1, $2, $3
 ) RETURNING *;
 
--- name: GetAccunt :one
-SELECT * FROM accounts
+-- name: GetAccount :one
+SELECT * FROM account
 WHERE id = $1 LIMIT 1;
 
+-- name: GetAccountForUpdate :one
+SELECT id, owner, balance, currency, created_at FROM account
+WHERE id = $1 LIMIT 1
+FOR NO KEY UPDATE;
+
 -- name: ListAccounts :many
-SELECT * FROM accounts
+SELECT * FROM account
 ORDER BY id
 LIMIT $1
 OFFSET $2;
 
 -- name: UpdateAccount :one
-UPDATE accounts
+UPDATE account
 SET balance = $2
 WHERE id = $1
 RETURNING *; /* 생성된 함수의 반환값을 만들어줌*/
 
+-- name: AddAccountBalance :one
+UPDATE account
+SET balance = balance + sqlc.arg(amount)
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
 
 -- name: DeleteAccount :exec
-DELETE FROM accounts 
+DELETE FROM account 
 WHERE id = $1;

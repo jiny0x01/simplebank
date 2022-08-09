@@ -14,4 +14,6 @@ migratedown:
 sqlc:
 	sqlc generate
 
-.PONNY: postgres createdb dropdb
+test:
+	go test -v -cover ./...
+.PONNY: postgres createdb dropdb migrateup migratedown sqlc test

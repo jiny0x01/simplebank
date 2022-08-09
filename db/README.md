@@ -38,3 +38,6 @@ sqlc는 type-safe한 코드를 생성해준다.
 postgresql을 잘 지원해주기 때문에 
 
 5.44부터
+
+
+# Transaction Isolation Level
