@@ -11,7 +11,7 @@ import (
 
 type createAccountRequest struct {
 	Owner string `json:"owner" binding:"required"`
-	Currency string `json:"currency" binding:"required,oneof=USD EUR"` // oneof 태그는 스페이스를 기준으로 둘 중 하나의 값을 요구함
+	Currency string `json:"currency" binding:"required,currency"` // oneof 태그는 스페이스를 기준으로 둘 중 하나의 값을 요구함
 }
 
 func (server *Server) createAccount(ctx *gin.Context) {
