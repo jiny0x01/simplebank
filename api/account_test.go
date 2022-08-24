@@ -20,14 +20,14 @@ import (
 func TestGetAccountAPI(t *testing.T) {
 	account := randomAccount()
 
-	testCases := []struct{
-		name string
-		accountID int64
-		buildStubs func(store *mockdb.MockStore)
+	testCases := []struct {
+		name          string
+		accountID     int64
+		buildStubs    func(store *mockdb.MockStore)
 		checkResponse func(t *testing.T, recoder *httptest.ResponseRecorder)
-	} {
+	}{
 		{
-			name: "OK",
+			name:      "OK",
 			accountID: account.ID,
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
@@ -35,13 +35,13 @@ func TestGetAccountAPI(t *testing.T) {
 					Times(1).
 					Return(account, nil)
 			},
-			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder){
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchAccount(t, recorder.Body, account)
 			},
 		},
 		{
-			name: "NotFound",
+			name:      "NotFound",
 			accountID: account.ID,
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
@@ -49,12 +49,12 @@ func TestGetAccountAPI(t *testing.T) {
 					Times(1).
 					Return(db.Account{}, sql.ErrNoRows)
 			},
-			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder){
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusNotFound, recorder.Code)
 			},
 		},
 		{
-			name: "InternalError",
+			name:      "InternalError",
 			accountID: account.ID,
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
@@ -62,26 +62,26 @@ func TestGetAccountAPI(t *testing.T) {
 					Times(1).
 					Return(db.Account{}, sql.ErrConnDone)
 			},
-			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder){
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			},
-		},	
+		},
 		{
-			name: "InvalidID",
+			name:      "InvalidID",
 			accountID: 0,
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
 					GetAccount(gomock.Any(), gomock.Any()).
 					Times(0)
 			},
-			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder){
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusBadRequest, recorder.Code)
 			},
 		},
 		// TODO: add more cases
 
 	}
-	for i:= range testCases {
+	for i := range testCases {
 		tc := testCases[i]
 
 		t.Run(tc.name, func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestGetAccountAPI(t *testing.T) {
 			store := mockdb.NewMockStore(ctrl)
 			tc.buildStubs(store)
 
-			server := NewServer(store)
+			server := newTestServer(t, store)
 			recorder := httptest.NewRecorder()
 
 			url := fmt.Sprintf("/accounts/%d", tc.accountID)
@@ -112,7 +112,6 @@ func randomAccount() db.Account {
 		Currency: util.RandomCurrency(),
 	}
 }
-
 
 func requireBodyMatchAccount(t *testing.T, body *bytes.Buffer, account db.Account) {
 	data, err := ioutil.ReadAll(body)
