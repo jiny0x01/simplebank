@@ -5,11 +5,12 @@ on:
     branches: [ master ]
 
 jobs:
+
   build:
     name: Build image 
     runs-on: ubuntu-latest
 
-   steps:
+    steps:
     - name: Check out code 
       uses: actions/checkout@v2
 
