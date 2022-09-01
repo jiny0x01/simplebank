@@ -178,3 +178,37 @@ JWT의 문제를 해결한 토큰
 AWS 리소스를 사용하도록 인증되고 승인된 사람을 제어하는데 사용할 수 있다.
 
 User groups를 사용하면 사용자 그룹별로 aws 리소스 권한을 부여할 수 있음(admin, developer, tester 나눠서 사용)
+
+## AWS DB 설정
+aws RDS에 db가 올라가고 Makefile에 작성한 migrate 스크립트를 localhost에서 RDS의 url과 password로 변경하게 된다.
+실제 운영환경에서는 app.env에서 DB_SOURCE를 RDS의 DB url과 password로 변경해야한다.
+TOKEN 대칭 키도 마찬가지인데
+환경변수를 test용이랑 real production용이랑 적용을 다르게 해야한다.
+
+docker를 빌드하고 ECR에 컨테이너가 올라가기 전에 환경변수를 셋팅해주면 되는데 이 환경변수들은 보안적으로 중요한 정보를 담고 있으므로 github-repo에 올리면 안된다.
+좋은 방법은 AWS secret manager service를 사용하는 것이다.
+
+AWS secret manager service에 저장한 값을 app.env에서 검색하게 만들려면 aws cli를 설치하여 AWS에 접근할 수 있게 만들자.
+aws-cli를 설치했으면 configure를 설정해줘야한다.
+
+```bash
+aws configure
+```
+access_key랑 secret key를 등록해야하는데 AWS IAM에서 user-security_credentials에서 access_key를 만들어서 등록해주면 된다.
+
+
+```bash
+aws secretsmanager get-secret-value --secret-id {FRIENDLY_NAME OR ARN} --query SecretString --output text
+```
+위 스크립트를 사용하여 aws secret manager에 등록된 환경변수를 json으로 받아올 수 있다. 스크립트 실행 결과는 raw text로 나오기 때문에 json 포멧에 맞춰 변경해줘야한다.
+이를 위해 **jq**를 설치해줘야한다.
+> brew install jq
+
+환경변수 뽑는 스크립트를 파이프로 jq에 전달하면 json 포멧에 맞춰 잘 나온다.
+```bash
+
+```bash
+aws secretsmanager get-secret-value --secret-id {FRIENDLY_NAME OR ARN} --query SecretString --output text | jq 'to_entries|map("\(.key)=\(.value)")|.[]' -r > app.env
+```
+위 스크립트로 aws-cli로 뽑은 aws secret 환경변수 값들을 동적으로 app.env에 적용해주면 된다.
+이를 app.env에 적용해줘야하는데 
