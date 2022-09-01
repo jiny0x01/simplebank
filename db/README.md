@@ -211,3 +211,4 @@ aws secretsmanager get-secret-value --secret-id {FRIENDLY_NAME OR ARN} --query S
 aws secretsmanager get-secret-value --secret-id {FRIENDLY_NAME OR ARN} --query SecretString --output text | jq 'to_entries|map("\(.key)=\(.value)")|.[]' -r > app.env
 ```
 위 스크립트로 aws-cli로 뽑은 aws secret 환경변수 값들을 동적으로 app.env에 적용해주면 된다.
+
