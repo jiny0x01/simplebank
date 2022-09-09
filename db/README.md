@@ -211,3 +211,70 @@ aws secretsmanager get-secret-value --secret-id {FRIENDLY_NAME OR ARN} --query S
 aws secretsmanager get-secret-value --secret-id {FRIENDLY_NAME OR ARN} --query SecretString --output text | jq 'to_entries|map("\(.key)=\(.value)")|.[]' -r > app.env
 ```
 위 스크립트로 aws-cli로 뽑은 aws secret 환경변수 값들을 동적으로 app.env에 적용해주면 된다.
+
+## kubernetes component
+
++ master node
+  + worker node들을 관리하기 위함
+  + 프론트 엔드에서 요청을 처리하기 위한 API 서버로 master node가 될 수 있다.
+  + etcd는 모든 클러스터 데이터를 key:value로 저장한다.
+  + scheduler는 아직 노드에 할당되지 않은 새 pod를 감시하다가 실행하기 위해 노드를 선택한다.
+  + control manager는 다음 컨트롤러들을 모아둔거다.
+    + node controller
+    + job controller
+    + end-point controller
+    + service account & token controller
+  + cloud controller manager는 cloud provider api와 통신하기 위한 매니저다.
+    + node-controller
+    + route controller
+    + service controller
+    + 
++ worker node
+  + 각 worker node에는 kubelet agent가 존재
+  + kubelet은 pod를 관리함 
+  + kube-proxy
+    + 쿠버네티스 네트워크간 통신
+
+## EKS
+쿠버네티스 컴포넌트가 복합적이므로 쉽게 관리하기 위한게 AWS EKS다.
+마스터 노드는 EKS에서 자동으로 생성된다.
+설정 해야할 일은
++ 워커노드를 EKS에 추가해주고 관련 셋팅들만 해주면된다.
+
+aws-cli를 통해 로컬 터미널에서 클라우드로 접속할 수 있다.
+IAM에서 EKS에 필요한 ROLE을 설정해주고 EKS에 적용해준다.
+
+aws-cli의 credentials에서 이미 다른 AWS 서비스(github에서 ECR 연동을 위해 authorized된 access_key, secret_access_key)를 사용하고 있으면 ***~/.aws/credentials*** 파일에 EKS용으로 새로 key를 만들어서 추가해주면 된다.
+```bash
+[default]
+aws_access_key_id = [ACCESS_KEY]
+aws_secret_access_key_id = [SECRET_ACCESS_KEY]
+
+[github]
+aws_access_key_id = [ACCESS_KEY]
+aws_secret_access_key_id = [SECRET_ACCESS_KEY]
+```
+위 예시처럼 aws-cli를 github 관련 용으로 쓸 때는 ***AWS_PROFILE*** 환경변수를 조정해주면 된다.
+> export AWS_PROFILE=github
+
+그렇다면 _github_ credential로  클러스터에 접근하려면 어떻게 해야 할까?
+https://aws.amazon.com/ko/premiumsupport/knowledge-center/amazon-eks-cluster-access/
+이 내용에 따르면 aws-auth.yaml에 접근하려는 사용자의 arn을 등록해주면 된다.
+```yaml
+#aws-auth.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapUsers: |
+    - userarn: {IAM 사용자의 ARN}
+      username: {IAM에 등록된 사용자 이름}
+      groups:
+        - system:masters
+```
+
+> kubectl apply -f aws-auth.yaml
+
+제대로 작동하는지 확인하기 위해서 AWS_PROFILE을 default, github 번갈아가며 ***kubectl cluster-info*** 로 테스트 했을 때 동일한 결과가 나와야한다.

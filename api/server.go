@@ -38,13 +38,10 @@ func (server *Server) setupRouter() {
 		v.RegisterValidation("currency", validCurrency)
 	}
 
-
 	router.POST("/users", server.createUser)
 	router.POST("/users/login", server.loginUser)
 
-
 	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
-
 
 	authRoutes.POST("/accounts", server.createAccount)
 	authRoutes.GET("/accounts/:id", server.getAccount)
@@ -57,8 +54,8 @@ func (server *Server) setupRouter() {
 	authRoutes.DELETE("/accounts", server.deleteAccount)
 
 	router.POST("/transfers", server.createTransfer)
-server.router = router
-	
+	server.router = router
+
 }
 
 func (server *Server) Start(address string) error {
