@@ -9,5 +9,5 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8080
-  type: ClusterIP # loadbalancer로 추가해줘야 external-ip가 할당된다.  default는 cluster-ip만 생성됨
+  type: LoadBalancer # loadbalancer로 추가해줘야 external-ip가 할당된다.  default는 cluster-ip만 생성됨
                   # ClusterIP를 사용할 경우 ingress를 추가하여 ingress에서 service로 연결하게 만듬
