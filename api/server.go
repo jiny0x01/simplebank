@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"html/template"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -32,14 +33,30 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 	return server, nil
 }
 
+func (server *Server) RenderTemplate(ctx *gin.Context, name string, data interface{}) {
+	tmpl, _ := template.ParseFiles(name)
+	tmpl.Execute(ctx.Writer, data)
+}
+
+func (server *Server) RenderMainView(ctx *gin.Context) {
+	server.RenderTemplate(ctx, "html/main.html", nil)
+}
+
 func (server *Server) setupRouter() {
 	router := gin.Default()
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("currency", validCurrency)
 	}
 
+	router.GET("/", server.RenderMainView)
 	router.POST("/users", server.createUser)
+	router.GET("/users/auth", server.renderAuthView)
+	router.GET("/users/auth/refresh", server.refreshAccessToken)
+	router.GET("/users/auth/callback", server.callbackOauth)
+	router.GET("/users/auth/revoke", server.revokeAccessToken)
+	router.POST("/users/auth/", server.getOauthUserInfo)
 	router.POST("/users/login", server.loginUser)
+	router.GET("/users/login/auth", server.loginOauthUser)
 
 	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
 

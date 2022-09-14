@@ -5,6 +5,7 @@
 package db
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -22,6 +23,15 @@ type Entry struct {
 	// can be negative or positive
 	Amount    int64     `json:"amount"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type Oauths struct {
+	ID           string       `json:"id"`
+	Fullname     string       `json:"fullname"`
+	Email        string       `json:"email"`
+	Provider     string       `json:"provider"`
+	RefreshToken string       `json:"refresh_token"`
+	CreatedAt    sql.NullTime `json:"created_at"`
 }
 
 type Transfer struct {
