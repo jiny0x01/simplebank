@@ -145,3 +145,4 @@ func (server *Server) deleteAccount(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, nil)
 }
+

@@ -2,8 +2,10 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -18,16 +20,17 @@ type OauthEnv struct {
 
 const (
 	redirectURL = "http://localhost:8080/users/auth/callback"
+	// 인증 권한 범위. 여기에서는 프로필 정보 권한만 사용
+	scopeEmail   = "https://www.googleapis.com/auth/userinfo.email"
+	scopeProfile = "https://www.googleapis.com/auth/userinfo.profile"
+
+	authEndpoint            = "https://accounts.google.com/o/oauth2/auth"
+	tokenEndpoint           = "https://oauth2.googleapis.com/token"     // oauth2.Config.Exchange에서 내부적으로 사용함
+	tokenInfoEndpoint       = "https://oauth2.googleapis.com/tokeninfo" // ?access_token="accesstoken"
+	RevokeGoogleAPIEndpoint = "https://oauth2.googleapis.com/revoke"
 
 	// 인증 후 유저 정보를 가져오기 위한 API
-	userInfoAPIEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
-
-	// 인증 권한 범위. 여기에서는 프로필 정보 권한만 사용
-	scopeEmail              = "https://www.googleapis.com/auth/userinfo.email"
-	scopeProfile            = "https://www.googleapis.com/auth/userinfo.profile"
-	authURL                 = "https://accounts.google.com/o/oauth2/auth"
-	tokenURL                = "https://oauth2.googleapis.com/token" // oauth2.Config.Exchange에서 내부적으로 사용함
-	revokeGoogleAPIEndpoint = "https://oauth2.googleapis.com/revoke"
+	UserInfoAPIEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
 )
 
 var Conf oauth2.Config
@@ -55,8 +58,8 @@ func init() {
 			scopeProfile,
 		},
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  authURL,
-			TokenURL: tokenURL,
+			AuthURL:  authEndpoint,
+			TokenURL: tokenEndpoint,
 		},
 		RedirectURL: redirectURL,
 	}
@@ -81,6 +84,28 @@ func Authenticate(code string) (*oauth2.Token, error) {
 	return token, nil
 }
 
+func Verify(access_token string) (map[string]any, error) {
+
+	res, err := http.Get(tokenInfoEndpoint + "?access_token=" + access_token)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	var result any
+
+	bytes, _ := ioutil.ReadAll(res.Body)
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Verify result:%v\n", result)
+	if res.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprint(result))
+	}
+	return result.(map[string]any), nil
+}
+
 func Revoke(endpoint string, token string) error {
 	res, err := http.PostForm(endpoint, url.Values{"token": {token}})
 	if err != nil {
@@ -93,4 +118,40 @@ func Revoke(endpoint string, token string) error {
 		return errors.New("invalid_token")
 	}
 	return nil
+}
+
+func Refresh(refreshToken string) (any, error) {
+	res, err := http.PostForm(tokenEndpoint, url.Values{
+		"client_id":     {Conf.ClientID},
+		"client_secret": {Conf.ClientSecret},
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {refreshToken},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+	fmt.Printf("status:%d\n", res.StatusCode)
+
+	/*
+		result := struct {
+			AccessToken string    `json:"access_token"`
+			ExpiresIn   time.Time `json:"expires_in"`
+			Scope       string    `json:"scope"`
+			TokenType   string    `json:"token_type"`
+		}{}
+	*/
+	var result any
+
+	bytes, _ := ioutil.ReadAll(res.Body)
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Refresh result:%v\n", result)
+	if res.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprint(result))
+	}
+	return result, nil
 }
