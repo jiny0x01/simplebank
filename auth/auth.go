@@ -36,7 +36,7 @@ const (
 var Conf oauth2.Config
 
 func init() {
-	viper.AddConfigPath(".")
+	viper.AddConfigPath("../")
 	viper.SetConfigName("app")
 	viper.SetConfigType("env")
 	viper.AutomaticEnv()
@@ -134,14 +134,6 @@ func Refresh(refreshToken string) (any, error) {
 	defer res.Body.Close()
 	fmt.Printf("status:%d\n", res.StatusCode)
 
-	/*
-		result := struct {
-			AccessToken string    `json:"access_token"`
-			ExpiresIn   time.Time `json:"expires_in"`
-			Scope       string    `json:"scope"`
-			TokenType   string    `json:"token_type"`
-		}{}
-	*/
 	var result any
 
 	bytes, _ := ioutil.ReadAll(res.Body)

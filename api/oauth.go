@@ -118,7 +118,6 @@ func (server *Server) getOauthUserInfo(ctx *gin.Context) {
 		return
 	}
 	sub := id_token["sub"].(string)
-	fmt.Printf("id:%s\n", sub)
 
 	user, err := server.store.GetOauthUser(ctx, sub)
 	if err != nil {
