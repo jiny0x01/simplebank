@@ -9,14 +9,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/spf13/viper"
+	"github.com/jiny0x01/simplebank/util"
 	"golang.org/x/oauth2"
 )
-
-type OauthEnv struct {
-	ClientID     string `mapstructure:"CLIENT_ID"`
-	ClientSecret string `mapstructure:"CLIENT_SECRET"`
-}
 
 const (
 	redirectURL = "http://localhost:8080/users/auth/callback"
@@ -36,23 +31,17 @@ const (
 var Conf oauth2.Config
 
 func init() {
-	viper.AddConfigPath("../")
-	viper.SetConfigName("app")
-	viper.SetConfigType("env")
-	viper.AutomaticEnv()
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(err)
-	}
-	env := &OauthEnv{}
-	err = viper.Unmarshal(&env)
+	// FIXME: util.LoadConfig(".") -> make test 할 때 panic 발생
+	// util.LoadConfig("../") -> make server 할 때 panic 발생
+	// server.config로 가져오는 방식이나 다른 방식 생각 필요 
+	envConf, err := util.LoadConfig(".")
 	if err != nil {
 		panic(err)
 	}
 
 	Conf = oauth2.Config{
-		ClientID:     env.ClientID,
-		ClientSecret: env.ClientSecret,
+		ClientID:     envConf.ClientID,
+		ClientSecret: envConf.ClientSecret,
 		Scopes: []string{
 			scopeEmail,
 			scopeProfile,
