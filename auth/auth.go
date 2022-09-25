@@ -36,7 +36,7 @@ const (
 var Conf oauth2.Config
 
 func init() {
-	viper.AddConfigPath("../")
+	viper.AddConfigPath("./")
 	viper.SetConfigName("app")
 	viper.SetConfigType("env")
 	viper.AutomaticEnv()
