@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/spf13/viper"
+	"github.com/jiny0x01/simplebank/util"
 	"golang.org/x/oauth2"
 )
 
@@ -36,23 +36,14 @@ const (
 var Conf oauth2.Config
 
 func init() {
-	viper.AddConfigPath("./")
-	viper.SetConfigName("app")
-	viper.SetConfigType("env")
-	viper.AutomaticEnv()
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(err)
-	}
-	env := &OauthEnv{}
-	err = viper.Unmarshal(&env)
+	envConf, err := util.LoadConfig("../")
 	if err != nil {
 		panic(err)
 	}
 
 	Conf = oauth2.Config{
-		ClientID:     env.ClientID,
-		ClientSecret: env.ClientSecret,
+		ClientID:     envConf.ClientID,
+		ClientSecret: envConf.ClientSecret,
 		Scopes: []string{
 			scopeEmail,
 			scopeProfile,
