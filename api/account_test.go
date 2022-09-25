@@ -20,7 +20,7 @@ import (
 )
 
 func TestGetAccountAPI(t *testing.T) {
-	user, _ := randomUser()
+	user, _ := randomUser(t)
 	account := randomAccount(user.Username)
 
 	testCases := []struct {
@@ -113,7 +113,6 @@ func TestGetAccountAPI(t *testing.T) {
 			url := fmt.Sprintf("/accounts/%d", tc.accountID)
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
-
 
 			tc.setupAuth(t, request, server.tokenMaker)
 			server.router.ServeHTTP(recorder, request)

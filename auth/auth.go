@@ -13,11 +13,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type OauthEnv struct {
-	ClientID     string `mapstructure:"CLIENT_ID"`
-	ClientSecret string `mapstructure:"CLIENT_SECRET"`
-}
-
 const (
 	redirectURL = "http://localhost:8080/users/auth/callback"
 	// 인증 권한 범위. 여기에서는 프로필 정보 권한만 사용
@@ -36,7 +31,10 @@ const (
 var Conf oauth2.Config
 
 func init() {
-	envConf, err := util.LoadConfig("../")
+	// FIXME: util.LoadConfig(".") -> make test 할 때 panic 발생
+	// util.LoadConfig("../") -> make server 할 때 panic 발생
+	// server.config로 가져오는 방식이나 다른 방식 생각 필요 
+	envConf, err := util.LoadConfig(".")
 	if err != nil {
 		panic(err)
 	}
