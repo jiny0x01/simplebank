@@ -33,8 +33,9 @@ var Conf oauth2.Config
 func init() {
 	// FIXME: util.LoadConfig(".") -> make test 할 때 panic 발생
 	// util.LoadConfig("../") -> make server 할 때 panic 발생
-	// server.config로 가져오는 방식이나 다른 방식 생각 필요 
+	// server.config로 가져오는 방식이나 다른 방식 생각 필요
 	envConf, err := util.LoadConfig(".")
+
 	if err != nil {
 		panic(err)
 	}
