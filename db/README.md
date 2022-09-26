@@ -43,6 +43,13 @@ postgresql을 잘 지원해주기 때문에
 
 5.44부터
 
+# DBDOCS와 DBML(Database Markup Language)
+dbdocs.io는 DB 스키마 정보를 웹상에서 시각화해주는 도구다.
+https://dbdocs.io/docs
+
+DBML은 오픈소스이며 DSL DB 스키마와 구조 정의하고 문서화하도록 설계되었다.
+https://www.dbml.org/home/#what-can-i-do-now
+CLI tool을 사용하여 관리 가능
 
 # Transaction Isolation Level
 동시 트랜잭션은 서로 영향을 미치지 않아야하는 데이터 베이스 성질을 Isolation이라 한다.
