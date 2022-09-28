@@ -7,6 +7,9 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jiny0x01/simplebank/api"
 	db "github.com/jiny0x01/simplebank/db/sqlc"
@@ -28,12 +31,27 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot testDB connect to db:", err)
 	}
-	store := db.NewStore(conn)
+
+	runDBMigration(config.MigrationURL, config.DBSource)
 
 	// gin server와 grpc 서버를 같이 돌리면 한쪽에서 blocking함
 	// 따라서 grpc_gateway 플러그인을 사용하여 http request를 grpc로 변환해주고 응답은 다시 http로 받는 식으로 구현
+	store := db.NewStore(conn)
 	go runGatewayServer(config, store)
 	runGrpcServer(config, store)
+}
+
+func runDBMigration(migrationURL string, dbSource string) {
+	migration, err := migrate.New(migrationURL, dbSource)
+	if err != nil {
+		log.Fatal("cannot create new migrate instance:", err)
+	}
+
+	if err = migration.Up(); err != nil && err != migrate.ErrNoChange{
+		log.Fatal("failed to run migrate up:", err)
+	}
+
+	log.Println("db migrated successfully")
 }
 
 func runGrpcServer(config util.Config, store db.Store) {
