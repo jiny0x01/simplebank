@@ -31,6 +31,11 @@ type Querier interface {
 	ListEntries(ctx context.Context, arg ListEntriesParams) ([]Entry, error)
 	ListTransfers(ctx context.Context, arg ListTransfersParams) ([]Transfer, error)
 	UpdateAccount(ctx context.Context, arg UpdateAccountParams) (Account, error)
+	// 1안.CASE 사용
+	// 2안. COALSECE와 sqlc.narg()사용
+	// sqlc.narg()는 파라미터에 null이 들어갈 수 있음
+	// where절에선 검색해야하니 sqlc.narg()가 아닌 sqlc.arg()
+	UpdateUser(ctx context.Context, arg UpdateUserParams) (Users, error)
 }
 
 var _ Querier = (*Queries)(nil)
