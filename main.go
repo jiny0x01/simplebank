@@ -37,7 +37,8 @@ func main() {
 	// gin server와 grpc 서버를 같이 돌리면 한쪽에서 blocking함
 	// 따라서 grpc_gateway 플러그인을 사용하여 http request를 grpc로 변환해주고 응답은 다시 http로 받는 식으로 구현
 	store := db.NewStore(conn)
-	go runGatewayServer(config, store)
+	go runGinServer(config, store)
+	//	go runGatewayServer(config, store) grpc-gateway가 HTTP 요청을 grpc로 변환시켜서 전달함
 	runGrpcServer(config, store)
 }
 
@@ -47,7 +48,7 @@ func runDBMigration(migrationURL string, dbSource string) {
 		log.Fatal("cannot create new migrate instance:", err)
 	}
 
-	if err = migration.Up(); err != nil && err != migrate.ErrNoChange{
+	if err = migration.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatal("failed to run migrate up:", err)
 	}
 
