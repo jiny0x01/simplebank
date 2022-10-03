@@ -1,3 +1,4 @@
 *.log
 /pb
 /doc/swagger
+app.env
