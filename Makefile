@@ -34,6 +34,9 @@ test:
 server:
 	go run main.go
 
+auth_server:
+	go run cmd/auth_server/main.go
+
 mock: 
 	mockgen -package mockdb -destination db/mock/store.go github.com/jiny0x01/simplebank/db/sqlc Store
 
@@ -50,4 +53,4 @@ proto_compile:
 evans:
 	evans --port 9090 --host localhost -r repl
 	
-.PONNY: postgres createdb dropdb migrateup migratedown sqlc test server mock migrateup1 migratedown1 db_docs db_schema proto_compile evans
+.PONNY: postgres createdb dropdb migrateup migratedown sqlc test server mock migrateup1 migratedown1 db_docs db_schema proto_compile evans auth_server

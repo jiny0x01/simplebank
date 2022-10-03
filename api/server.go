@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"html/template"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -49,13 +50,21 @@ func (server *Server) setupRouter() {
 	}
 
 	router.GET("/", server.RenderMainView)
-	router.POST("/users", server.createUser)
+	router.POST("/users", func(ctx *gin.Context) {
+		// 307(StatusTemporaryRedirect) will
+		// reissue the same request and verb to a different URI specified by the location header.
+		// API 서버로 회원가입/로그인 요청을 인증서버로 redirect
+		ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:9091/v1/create_user")
+	})
+	router.POST("/users/login", func(ctx *gin.Context) {
+		ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:9091/v1/login_user")
+	})
+
 	router.GET("/users/auth", server.renderAuthView)
 	router.GET("/users/auth/refresh", server.refreshAccessToken)
 	router.GET("/users/auth/callback", server.callbackOauth)
 	router.GET("/users/auth/revoke", server.revokeAccessToken)
 	router.POST("/users/auth/", server.getOauthUserInfo)
-	router.POST("/users/login", server.loginUser)
 	router.POST("/tokens/renew_access/", server.renewAccessToken)
 	router.GET("/users/login/auth", server.loginOauthUser)
 

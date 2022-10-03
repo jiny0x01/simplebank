@@ -1,22 +1,41 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jiny0x01/simplebank/auth"
 	db "github.com/jiny0x01/simplebank/db/sqlc"
 	"golang.org/x/oauth2"
 )
 
+const (
+	redirectURL = "http://localhost:8080/users/auth/callback"
+	// 인증 권한 범위. 여기에서는 프로필 정보 권한만 사용
+	scopeEmail   = "https://www.googleapis.com/auth/userinfo.email"
+	scopeProfile = "https://www.googleapis.com/auth/userinfo.profile"
+
+	authEndpoint            = "https://accounts.google.com/o/oauth2/auth"
+	tokenEndpoint           = "https://oauth2.googleapis.com/token"     // oauth2.Config.Exchange에서 내부적으로 사용함
+	tokenInfoEndpoint       = "https://oauth2.googleapis.com/tokeninfo" // ?access_token="accesstoken"
+	RevokeGoogleAPIEndpoint = "https://oauth2.googleapis.com/revoke"
+
+	// 인증 후 유저 정보를 가져오기 위한 API
+	UserInfoAPIEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
+)
+
+var Conf oauth2.Config
+
 func (server *Server) renderAuthView(ctx *gin.Context) {
 	// Redirect user to consent page to ask for permission
 	// for the scopes specified above.
-	url := auth.Conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	url := Conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	// Online is the default if neither is specified.
 	// If your application needs to refresh access tokens
 	// when the user is not present at the browser, then use offline.
@@ -34,15 +53,15 @@ func (server *Server) renderAuthView(ctx *gin.Context) {
 func (server *Server) callbackOauth(ctx *gin.Context) {
 	code := ctx.Request.FormValue("code")
 
-	token, err := auth.Authenticate(code)
+	token, err := Authenticate(code)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-	client := auth.Conf.Client(ctx, token)
+	client := Conf.Client(ctx, token)
 	// client.Get("api url")
 	// scope에 동의한 정보면 다 갖고올 수 있다.
-	userInfoResp, err := client.Get(auth.UserInfoAPIEndpoint)
+	userInfoResp, err := client.Get(UserInfoAPIEndpoint)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
@@ -112,7 +131,7 @@ func (server *Server) getOauthUserInfo(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-	id_token, err := auth.Verify(req.AccessToken)
+	id_token, err := Verify(req.AccessToken)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
@@ -135,7 +154,7 @@ func (server *Server) getOauthUserInfo(ctx *gin.Context) {
 func (server *Server) refreshAccessToken(ctx *gin.Context) {
 	refresh_token := ctx.Request.FormValue("refresh_token")
 	fmt.Printf("refresh:%s\n", refresh_token)
-	token, err := auth.Refresh(refresh_token)
+	token, err := Refresh(refresh_token)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
@@ -149,11 +168,94 @@ func (server *Server) revokeAccessToken(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, "FromValue require token which is access token or refresh token both ok")
 		return
 	}
-	err := auth.Revoke(auth.RevokeGoogleAPIEndpoint, token)
+	err := Revoke(RevokeGoogleAPIEndpoint, token)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
 
 	ctx.JSON(http.StatusOK, nil)
+}
+
+func Authenticate(code string) (*oauth2.Token, error) {
+	if code == "" {
+		return nil, errors.New("code is not exist")
+	}
+	fmt.Println(code)
+	// Exchange()의 역할은 아래 url 단계에 해당함
+	// https://developers.google.com/identity/protocols/oauth2/web-server#exchange-authorization-code
+	token, err := Conf.Exchange(context.Background(), code)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("oauth token\n\taccess:%s\n\trefresh:%s\n", token.AccessToken, token.RefreshToken)
+	// token은 redis나 rdb에 저장하는게 맞다.
+	// access token은 client에게(웹브라우저, 모바일 디바이스)에 보관해도 되지만
+	// access token은 key-value cache db(redis)에 저장 관리해도 되지만
+	// refresh token은 expiry가 기므로 rdb에 저장하는게 나아보인다.
+	return token, nil
+}
+
+func Verify(access_token string) (map[string]any, error) {
+
+	res, err := http.Get(tokenInfoEndpoint + "?access_token=" + access_token)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	var result any
+
+	bytes, _ := ioutil.ReadAll(res.Body)
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Verify result:%v\n", result)
+	if res.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprint(result))
+	}
+	return result.(map[string]any), nil
+}
+
+func Revoke(endpoint string, token string) error {
+	res, err := http.PostForm(endpoint, url.Values{"token": {token}})
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	fmt.Printf("status:%d\n", res.StatusCode)
+	if res.StatusCode != 200 {
+		return errors.New("invalid_token")
+	}
+	return nil
+}
+
+func Refresh(refreshToken string) (any, error) {
+	res, err := http.PostForm(tokenEndpoint, url.Values{
+		"client_id":     {Conf.ClientID},
+		"client_secret": {Conf.ClientSecret},
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {refreshToken},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+	fmt.Printf("status:%d\n", res.StatusCode)
+
+	var result any
+
+	bytes, _ := ioutil.ReadAll(res.Body)
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Refresh result:%v\n", result)
+	if res.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprint(result))
+	}
+	return result, nil
 }

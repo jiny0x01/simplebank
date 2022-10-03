@@ -37,8 +37,8 @@ func main() {
 	// gin server와 grpc 서버를 같이 돌리면 한쪽에서 blocking함
 	// 따라서 grpc_gateway 플러그인을 사용하여 http request를 grpc로 변환해주고 응답은 다시 http로 받는 식으로 구현
 	store := db.NewStore(conn)
-	go runGinServer(config, store)
-	//	go runGatewayServer(config, store) grpc-gateway가 HTTP 요청을 grpc로 변환시켜서 전달함
+	//	runGinServer(config, store)
+	go runGatewayServer(config, store)
 	runGrpcServer(config, store)
 }
 
