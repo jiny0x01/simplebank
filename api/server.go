@@ -48,26 +48,38 @@ func (server *Server) setupRouter() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("currency", validCurrency)
 	}
-
-	router.GET("/", server.RenderMainView)
+	// 인증 기능들 분리
+	// 우선은 redirect로 구현하고 후에 리펙토링 할 때 reverse proxy가 필요한 부분은 수정
 	router.POST("/users", func(ctx *gin.Context) {
 		// 307(StatusTemporaryRedirect) will
 		// reissue the same request and verb to a different URI specified by the location header.
 		// API 서버로 회원가입/로그인 요청을 인증서버로 redirect
-		ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:9091/v1/create_user")
+		ctx.Redirect(http.StatusTemporaryRedirect, 
+			server.config.HTTPAuthServerAddress + "/v1/create_user")
 	})
 	router.POST("/users/login", func(ctx *gin.Context) {
-		ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:9091/v1/login_user")
+		ctx.Redirect(http.StatusTemporaryRedirect, 
+			server.config.HTTPAuthServerAddress + "/v1/login_user")
 	})
 
-	router.GET("/users/auth", server.renderAuthView)
-	router.GET("/users/auth/refresh", server.refreshAccessToken)
-	router.GET("/users/auth/callback", server.callbackOauth)
-	router.GET("/users/auth/revoke", server.revokeAccessToken)
-	router.POST("/users/auth/", server.getOauthUserInfo)
-	router.POST("/tokens/renew_access/", server.renewAccessToken)
-	router.GET("/users/login/auth", server.loginOauthUser)
+	router.GET("/users/auth", func(ctx *gin.Context) {
+		ctx.Redirect(http.StatusTemporaryRedirect, 
+			server.config.HTTPAuthServerAddress + "/users/auth")
+	})
 
+	/*
+		router.GET("/users/auth/refresh", server.refreshAccessToken)
+		router.GET("/users/auth/callback", server.callbackOauth)
+		router.GET("/users/auth/revoke", server.revokeAccessToken)
+		router.POST("/users/auth/", server.getOauthUserInfo)
+		router.GET("/users/login/auth", server.loginOauthUser)
+	*/
+	router.POST("/tokens/renew_access/", func(ctx *gin.Context) {
+		ctx.Redirect(http.StatusTemporaryRedirect, 
+			server.config.HTTPAuthServerAddress + "/tokens/renew_access")
+	})
+
+	router.GET("/", server.RenderMainView)
 	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
 
 	authRoutes.POST("/accounts", server.createAccount)
