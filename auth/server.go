@@ -5,6 +5,7 @@ import (
 	"text/template"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v9"
 	db "github.com/jiny0x01/simplebank/db/sqlc"
 	"github.com/jiny0x01/simplebank/token"
 	"github.com/jiny0x01/simplebank/util"
@@ -17,6 +18,7 @@ type Server struct {
 	store       db.Store
 	tokenMaker  token.Maker
 	router      *gin.Engine
+	rdb         *redis.Client
 }
 
 func (server *Server) RenderTemplate(ctx *gin.Context, name string, data interface{}) {
@@ -46,6 +48,11 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 		},
 		store:      store,
 		tokenMaker: tokenMaker,
+		rdb: redis.NewClient(&redis.Options{
+			Addr:     config.RedisSource,
+			Password: config.RedisPassword,
+			DB:       0, // use default DB
+		}),
 	}
 	server.setupRouter()
 	return server, nil

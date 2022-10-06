@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	db "github.com/jiny0x01/simplebank/db/sqlc"
@@ -107,6 +108,11 @@ func (server *Server) callbackOauth(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 			return
 		}
+	}
+	err = server.rdb.Set(ctx.Request.Context(), token.AccessToken, "access_token", token.Expiry.Sub(time.Now())).Err()
+	if err != nil {
+		ctx.JSON(http.StatusConflict, errorResponse(err))
+		return
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
