@@ -1,4 +1,4 @@
-package api
+package auth
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	redirectURL = "http://localhost:8080/users/auth/callback"
+	redirectURL = "http://localhost:8081/oauth/callback"
 	// 인증 권한 범위. 여기에서는 프로필 정보 권한만 사용
 	scopeEmail   = "https://www.googleapis.com/auth/userinfo.email"
 	scopeProfile = "https://www.googleapis.com/auth/userinfo.profile"
@@ -30,12 +30,10 @@ const (
 	UserInfoAPIEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
 )
 
-var Conf oauth2.Config
-
-func (server *Server) renderAuthView(ctx *gin.Context) {
+func (server *Server) renderOauthView(ctx *gin.Context) {
 	// Redirect user to consent page to ask for permission
 	// for the scopes specified above.
-	url := Conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	url := server.oauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	// Online is the default if neither is specified.
 	// If your application needs to refresh access tokens
 	// when the user is not present at the browser, then use offline.
@@ -53,12 +51,12 @@ func (server *Server) renderAuthView(ctx *gin.Context) {
 func (server *Server) callbackOauth(ctx *gin.Context) {
 	code := ctx.Request.FormValue("code")
 
-	token, err := Authenticate(code)
+	token, err := server.Authenticate(code)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-	client := Conf.Client(ctx, token)
+	client := server.oauthConfig.Client(ctx, token)
 	// client.Get("api url")
 	// scope에 동의한 정보면 다 갖고올 수 있다.
 	userInfoResp, err := client.Get(UserInfoAPIEndpoint)
@@ -118,7 +116,7 @@ func (server *Server) callbackOauth(ctx *gin.Context) {
 
 func (server *Server) loginOauthUser(ctx *gin.Context) {
 	// 새로운 access_token을 발급한다.
-	server.renderAuthView(ctx)
+	server.renderOauthView(ctx)
 }
 
 type getOauthUserInfoRequest struct {
@@ -131,7 +129,7 @@ func (server *Server) getOauthUserInfo(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-	id_token, err := Verify(req.AccessToken)
+	id_token, err := server.Verify(req.AccessToken)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
@@ -151,10 +149,10 @@ func (server *Server) getOauthUserInfo(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, user)
 }
 
-func (server *Server) refreshAccessToken(ctx *gin.Context) {
+func (server *Server) refreshOauthAccessToken(ctx *gin.Context) {
 	refresh_token := ctx.Request.FormValue("refresh_token")
 	fmt.Printf("refresh:%s\n", refresh_token)
-	token, err := Refresh(refresh_token)
+	token, err := server.Refresh(refresh_token)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
@@ -162,13 +160,13 @@ func (server *Server) refreshAccessToken(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, token)
 }
 
-func (server *Server) revokeAccessToken(ctx *gin.Context) {
+func (server *Server) revokeOauthAccessToken(ctx *gin.Context) {
 	token := ctx.Request.FormValue("token")
 	if token == "" {
 		ctx.JSON(http.StatusBadRequest, "FromValue require token which is access token or refresh token both ok")
 		return
 	}
-	err := Revoke(RevokeGoogleAPIEndpoint, token)
+	err := server.Revoke(RevokeGoogleAPIEndpoint, token)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
@@ -177,14 +175,14 @@ func (server *Server) revokeAccessToken(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, nil)
 }
 
-func Authenticate(code string) (*oauth2.Token, error) {
+func (server *Server) Authenticate(code string) (*oauth2.Token, error) {
 	if code == "" {
 		return nil, errors.New("code is not exist")
 	}
 	fmt.Println(code)
 	// Exchange()의 역할은 아래 url 단계에 해당함
 	// https://developers.google.com/identity/protocols/oauth2/web-server#exchange-authorization-code
-	token, err := Conf.Exchange(context.Background(), code)
+	token, err := server.oauthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +194,7 @@ func Authenticate(code string) (*oauth2.Token, error) {
 	return token, nil
 }
 
-func Verify(access_token string) (map[string]any, error) {
+func (server *Server) Verify(access_token string) (map[string]any, error) {
 
 	res, err := http.Get(tokenInfoEndpoint + "?access_token=" + access_token)
 	if err != nil {
@@ -218,7 +216,7 @@ func Verify(access_token string) (map[string]any, error) {
 	return result.(map[string]any), nil
 }
 
-func Revoke(endpoint string, token string) error {
+func (server *Server) Revoke(endpoint string, token string) error {
 	res, err := http.PostForm(endpoint, url.Values{"token": {token}})
 	if err != nil {
 		return err
@@ -232,10 +230,10 @@ func Revoke(endpoint string, token string) error {
 	return nil
 }
 
-func Refresh(refreshToken string) (any, error) {
+func (server *Server) Refresh(refreshToken string) (any, error) {
 	res, err := http.PostForm(tokenEndpoint, url.Values{
-		"client_id":     {Conf.ClientID},
-		"client_secret": {Conf.ClientSecret},
+		"client_id":     {server.oauthConfig.ClientID},
+		"client_secret": {server.oauthConfig.ClientSecret},
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {refreshToken},
 	})

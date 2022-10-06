@@ -322,20 +322,6 @@ func TestLoginUserAPI(t *testing.T) {
 	}
 }
 
-func randomUser(t *testing.T) (user db.Users, password string) {
-	password = util.RandomString(6)
-	hashedPassword, err := util.HashPassword(password)
-	require.NoError(t, err)
-
-	user = db.Users{
-		Username:       util.RandomOwner(),
-		HashedPassword: hashedPassword,
-		FullName:       util.RandomOwner(),
-		Email:          util.RandomEmail(),
-	}
-	return
-}
-
 func requireBodyMatchUser(t *testing.T, body *bytes.Buffer, user db.Users) {
 	data, err := ioutil.ReadAll(body)
 	require.NoError(t, err)
@@ -348,4 +334,18 @@ func requireBodyMatchUser(t *testing.T, body *bytes.Buffer, user db.Users) {
 	require.Equal(t, user.FullName, getUser.FullName)
 	require.Equal(t, user.Email, getUser.Email)
 	require.Empty(t, getUser.HashedPassword)
+}
+
+func randomUser(t *testing.T) (user db.Users, password string) {
+	password = util.RandomString(6)
+	hashedPassword, err := util.HashPassword(password)
+	require.NoError(t, err)
+
+	user = db.Users{
+		Username:       util.RandomOwner(),
+		HashedPassword: hashedPassword,
+		FullName:       util.RandomOwner(),
+		Email:          util.RandomEmail(),
+	}
+	return
 }
