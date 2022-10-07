@@ -63,9 +63,9 @@ func (server *Server) setupRouter() {
 
 	router.GET("/", server.renderOauthView)
 	router.GET("/oauth/callback", server.callbackOauth)
-	router.GET("/users/oauth/info", server.getOauthUserInfo)
+	router.POST("/tokens/oauth/info", server.getOauthUserInfo)
 	router.POST("/tokens/oauth/revoke", server.revokeOauthAccessToken)
-	router.POST("/tokens/oauth/refresh", server.refreshOauthAccessToken)
+	router.GET("/tokens/oauth/refresh", server.refreshOauthAccessToken)
 	router.POST("/tokens/renew_access/", server.renewAccessToken)
 	router.GET("/users/login/auth", server.loginOauthUser)
 	server.router = router

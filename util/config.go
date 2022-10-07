@@ -19,6 +19,8 @@ type Config struct {
 	RefreshTokenDuration  time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
 	OauthClientID         string        `mapstructure:"OAUTH_CLIENT_ID"`
 	OauthClientSecret     string        `mapstructure:"OAUTH_CLIENT_SECRET"`
+	RedisSource           string        `mapstructure:"REDIS_SOURCE"`
+	RedisPassword         string        `mapstructure:"REDIS_PASSWORD"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

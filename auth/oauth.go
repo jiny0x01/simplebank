@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v9"
 	db "github.com/jiny0x01/simplebank/db/sqlc"
 	"golang.org/x/oauth2"
 )
@@ -109,14 +110,22 @@ func (server *Server) callbackOauth(ctx *gin.Context) {
 			return
 		}
 	}
-	err = server.rdb.Set(ctx.Request.Context(), token.AccessToken, "access_token", token.Expiry.Sub(time.Now())).Err()
+	/*
+		err = server.rdb.Set(ctx.Request.Context(), authUser.ID, token.AccessToken, token.Expiry.Sub(time.Now())).Err()
+		if err != nil {
+			ctx.JSON(http.StatusConflict, errorResponse(err))
+			return
+		}
+	*/
+	access_token, err := server.CacheToken(authUser.ID)
 	if err != nil {
-		ctx.JSON(http.StatusConflict, errorResponse(err))
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"access_token": token.AccessToken,
+		"access_id":    authUser.ID,
+		"access_token": access_token,
 	})
 }
 
@@ -126,6 +135,7 @@ func (server *Server) loginOauthUser(ctx *gin.Context) {
 }
 
 type getOauthUserInfoRequest struct {
+	AccessID    string `json:"access_id" binding:"required"`
 	AccessToken string `json:"access_token" binding:"required"`
 }
 
@@ -135,7 +145,7 @@ func (server *Server) getOauthUserInfo(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
-	id_token, err := server.Verify(req.AccessToken)
+	id_token, err := server.Verify(req.AccessID, req.AccessToken)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
@@ -200,7 +210,14 @@ func (server *Server) Authenticate(code string) (*oauth2.Token, error) {
 	return token, nil
 }
 
-func (server *Server) Verify(access_token string) (map[string]any, error) {
+func (server *Server) Verify(access_id, access_token string) (map[string]any, error) {
+	// google-api에 access_token verify하기 전에 redis에서 유효한 access_token인지 체크
+	val, err := server.rdb.Get(context.Background(), access_id).Result()
+	if err != nil {
+		return map[string]any{"access_token": val}, nil
+	} else if err != redis.Nil {
+		return nil, err
+	}
 
 	res, err := http.Get(tokenInfoEndpoint + "?access_token=" + access_token)
 	if err != nil {
@@ -219,6 +236,8 @@ func (server *Server) Verify(access_token string) (map[string]any, error) {
 	if res.StatusCode != 200 {
 		return nil, errors.New(fmt.Sprint(result))
 	}
+
+	server.CacheToken(access_id)
 	return result.(map[string]any), nil
 }
 
@@ -262,4 +281,33 @@ func (server *Server) Refresh(refreshToken string) (any, error) {
 		return nil, errors.New(fmt.Sprint(result))
 	}
 	return result, nil
+}
+
+func (server *Server) CacheToken(access_id string) (string, error) {
+	val, err := server.rdb.Get(context.Background(), access_id).Result()
+	if err != nil {
+		return "", err
+	} else if err != redis.Nil {
+		// cache found
+		return val, nil
+	}
+	// cache not found
+	// DB에서 refresh_token 찾아서 새로 발급받고 access_token return
+	user, err := server.store.GetOauthUser(context.Background(), access_id)
+	if err != nil {
+		return "", err
+	}
+	token, err := server.Refresh(user.RefreshToken)
+	if err != nil {
+		return "", err
+	}
+
+	access_token := token.(map[string]string)["access_token"]
+	expiry := token.(map[string]int)["expires_in"]
+	err = server.rdb.Set(context.Background(), access_id, access_token, time.Duration(expiry)).Err()
+	if err != nil {
+		return "", err
+	}
+
+	return access_token, nil
 }
